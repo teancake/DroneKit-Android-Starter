@@ -13,7 +13,8 @@
         android:paddingLeft="@dimen/activity_horizontal_margin"
         android:paddingRight="@dimen/activity_horizontal_margin"
         android:paddingTop="@dimen/activity_vertical_margin"
-        tools:context=".MainActivity">
+        tools:context=".MainActivity"
+        android:weightSum="1">
 
         <android.support.v7.widget.CardView
             android:id="@+id/connection_type_card"
@@ -32,7 +33,6 @@
                     android:layout_height="wrap_content"
                     android:layout_alignParentEnd="true"
                     android:layout_alignParentRight="true"
-                    android:layout_below="@+id/connectionTypeLabel"
                     android:onClick="onBtnConnectTap"
                     android:text="Connect" />
 
@@ -42,245 +42,208 @@
                     android:layout_height="44dp"
                     android:layout_alignParentLeft="true"
                     android:layout_alignParentStart="true"
-                    android:layout_below="@+id/connectionTypeLabel"
                     android:layout_toLeftOf="@+id/btnConnect"
                     android:entries="@array/drone_connection_types"
                     android:spinnerMode="dropdown" />
 
                 <TextView
-                    android:id="@+id/connectionTypeLabel"
-                    android:layout_width="wrap_content"
+                    android:id="@+id/vehicleModeLabelTextView"
+                    android:layout_width="100dp"
                     android:layout_height="wrap_content"
-                    android:layout_alignParentTop="true"
-                    android:layout_centerHorizontal="true"
-                    android:layout_marginBottom="10dp"
-                    android:text="Connection Type"
-                    android:textAppearance="?android:attr/textAppearanceMedium" />
+                    android:layout_column="0"
+                    android:paddingBottom="5dp"
+                    android:paddingTop="5dp"
+                    android:text="Mode:"
+                    android:textAppearance="?android:attr/textAppearanceMedium"
+                    android:layout_below="@+id/btnConnect"
+                    android:layout_toLeftOf="@+id/btnConnect"
+                    android:layout_alignParentLeft="true"
+                    android:layout_alignParentStart="true"
+                    android:layout_alignBottom="@+id/modeSelect" />
+
+                <Spinner
+                    android:id="@+id/modeSelect"
+                    android:layout_width="fill_parent"
+                    android:layout_height="44dp"
+                    android:layout_column="1"
+                    android:spinnerMode="dropdown"
+                    android:layout_below="@+id/btnConnect"
+                    android:layout_alignLeft="@+id/btnConnect"
+                    android:layout_alignStart="@+id/btnConnect" />
+
+                <Button
+                    android:id="@+id/btnArmTakeOff"
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:layout_column="1"
+                    android:onClick="onArmButtonTap"
+                    android:visibility="invisible"
+                    android:layout_below="@+id/vehicleModeLabelTextView"
+                    android:layout_alignRight="@+id/modeSelect"
+                    android:layout_alignEnd="@+id/modeSelect"
+                    android:layout_alignParentLeft="true"
+                    android:layout_alignParentStart="true" />
 
             </RelativeLayout>
 
         </android.support.v7.widget.CardView>
-
         <android.support.v7.widget.CardView
+            android:id="@+id/connection_type_card2"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_margin="5dp">
-
             <RelativeLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:padding="10dp">
-
-                <TextView
-                    android:id="@+id/telemetryLabel"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_centerHorizontal="true"
-                    android:layout_marginTop="10dp"
-                    android:text="Vehicle Telemetry"
-                    android:textAppearance="?android:attr/textAppearanceMedium" />
-
-                <TableLayout
-                    android:id="@+id/telemetryInfo"
-                    android:layout_width="fill_parent"
-                    android:layout_height="200dp"
-                    android:layout_alignParentLeft="true"
-                    android:layout_alignParentStart="true"
-                    android:layout_below="@+id/telemetryLabel"
-                    android:layout_marginTop="10dp">
-
-                    <TableRow
-                        android:id="@+id/vehTelemRow1"
-                        android:layout_width="fill_parent"
-                        android:layout_height="fill_parent">
-
-                        <TextView
-                            android:id="@+id/vehicleModeLabelTextView"
-                            android:layout_width="100dp"
-                            android:layout_height="wrap_content"
-                            android:layout_column="0"
-                            android:paddingBottom="5dp"
-                            android:paddingTop="5dp"
-                            android:text="Mode:"
-                            android:textAppearance="?android:attr/textAppearanceMedium" />
-
-                        <Spinner
-                            android:id="@+id/modeSelect"
-                            android:layout_width="fill_parent"
-                            android:layout_height="44dp"
-                            android:layout_alignParentLeft="true"
-                            android:layout_alignParentStart="true"
-                            android:layout_below="@+id/connectionTypeLabel"
-                            android:layout_column="1"
-                            android:layout_toLeftOf="@+id/btnConnect"
-                            android:spinnerMode="dropdown" />
-                    </TableRow>
-
-                    <TableRow
-                        android:id="@+id/vehTelemRow2"
-                        android:layout_width="fill_parent"
-                        android:layout_height="fill_parent">
-
-                        <TextView
-                            android:id="@+id/altitudeLabelTextView"
-                            android:layout_width="100dp"
-                            android:layout_height="wrap_content"
-                            android:layout_column="0"
-                            android:paddingBottom="5dp"
-                            android:paddingTop="5dp"
-                            android:text="Altitude:"
-                            android:textAppearance="?android:attr/textAppearanceMedium" />
-
-                        <TextView
-                            android:id="@+id/altitudeValueTextView"
-                            android:layout_width="fill_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_column="1"
-                            android:layout_gravity="left"
-                            android:paddingBottom="5dp"
-                            android:paddingTop="5dp"
-                            android:text="0m"
-                            android:textAppearance="?android:attr/textAppearanceMedium" />
-                    </TableRow>
-
-                    <TableRow
-                        android:id="@+id/vehTelemRow3"
-                        android:layout_width="fill_parent"
-                        android:layout_height="fill_parent">
-
-                        <TextView
-                            android:id="@+id/speedLabelTextView"
-                            android:layout_width="100dp"
-                            android:layout_height="wrap_content"
-                            android:layout_column="0"
-                            android:paddingBottom="5dp"
-                            android:paddingTop="5dp"
-                            android:text="Speed:"
-                            android:textAppearance="?android:attr/textAppearanceMedium" />
-
-                        <TextView
-                            android:id="@+id/speedValueTextView"
-                            android:layout_width="fill_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_column="1"
-                            android:layout_gravity="left"
-                            android:paddingBottom="5dp"
-                            android:paddingTop="5dp"
-                            android:text="0m/s"
-                            android:textAppearance="?android:attr/textAppearanceMedium" />
-                    </TableRow>
-
-                    <TableRow
-                        android:id="@+id/vehTelemRow4"
-                        android:layout_width="fill_parent"
-                        android:layout_height="fill_parent">
-
-                        <TextView
-                            android:id="@+id/distanceLabelTextView"
-                            android:layout_width="100dp"
-                            android:layout_height="wrap_content"
-                            android:layout_column="0"
-                            android:paddingBottom="5dp"
-                            android:paddingTop="5dp"
-                            android:text="Distance:"
-                            android:textAppearance="?android:attr/textAppearanceMedium" />
-
-                        <TextView
-                            android:id="@+id/distanceValueTextView"
-                            android:layout_width="fill_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_column="1"
-                            android:layout_gravity="left"
-                            android:paddingBottom="5dp"
-                            android:paddingTop="5dp"
-                            android:text="0m"
-                            android:textAppearance="?android:attr/textAppearanceMedium" />
-                    </TableRow>
-
-                    <TableRow
-                        android:layout_width="fill_parent"
-                        android:layout_height="fill_parent">
-
-                        <Button
-                            android:id="@+id/btnArmTakeOff"
-                            android:layout_width="120dp"
-                            android:layout_height="wrap_content"
-                            android:layout_alignParentEnd="true"
-                            android:layout_alignParentRight="true"
-                            android:layout_below="@+id/connectionTypeLabel"
-                            android:layout_column="1"
-                            android:onClick="onArmButtonTap"
-                            android:visibility="invisible" />
-                    </TableRow>
-
-                </TableLayout>
-
-            </RelativeLayout>
-
-        </android.support.v7.widget.CardView>
-
-        <android.support.v7.widget.CardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_margin="0dp">
-
-            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:gravity="center_horizontal">
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:orientation="horizontal">
-
-                    <Button
-                        android:id="@+id/take_photo_button"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:minHeight="48dp"
-                        android:text="Take a picture" />
-
-                    <Button
-                        android:id="@+id/toggle_video_recording"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:minHeight="48dp"
-                        android:text="Toggle video " />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:orientation="horizontal">
-                    <Button
-                        android:id="@+id/start_video_stream"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:minHeight="48dp"
-                        android:text="Start streaming"/>
-
-                    <Button
-                        android:id="@+id/stop_video_stream"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:minHeight="48dp"
-                        android:text="Stop streaming"/>
-
-                </LinearLayout>
-                <TextureView
-                    android:id="@+id/video_content"
+                android:layout_height="match_parent"
+                android:layout_gravity="center_horizontal"
+                android:layout_weight="3">
+                <ProgressBar
+                    android:id="@+id/reload_progress"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:minHeight="380dp"/>
+                    android:indeterminate="true"
+                    android:visibility="visible"
+                    style="@android:style/Widget.Holo.Light.ProgressBar.Horizontal"/>
+                <RelativeLayout
+                    android:id="@+id/rl1"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_below="@id/reload_progress"
+                    android:layout_weight="3">
+                    <Button
+                        style="?android:attr/buttonStyleSmall"
+                        android:text="+"
+                        android:id="@+id/btnPitchP"
+                        android:layout_column="0"
+                        android:layout_width="100dp"
+                        android:layout_height="100dp"
+                        android:textSize="25dp"
+                        android:onClick="onBtnPitchPTap"
+                        android:layout_alignParentBottom="true"
+                        android:layout_alignParentLeft="true"
+                        android:layout_alignParentStart="true" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Pitch"
+                        android:id="@+id/textPitchLabel"
+                        android:textSize="18dp"
+                        android:layout_centerVertical="true"
+                        android:layout_centerHorizontal="true" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0.0012"
+                        android:id="@+id/textPitchParam"
+                        android:textSize="18dp"
+                        android:textStyle="bold"
+                        android:layout_marginTop="65dp"
+                        android:layout_centerHorizontal="true" />
+                    <Button
+                        style="?android:attr/buttonStyleSmall"
+                        android:text="-"
+                        android:id="@+id/btnPitchM"
+                        android:layout_width="100dp"
+                        android:layout_height="100dp"
+                        android:textSize="25dp"
+                        android:onClick="onBtnPitchMTap"
+                        android:layout_alignParentRight="true"/>
+                </RelativeLayout>
+                <RelativeLayout
+                    android:id="@+id/rl2"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_below="@id/rl1"
+                    android:layout_weight="3">
+                    <Button
+                        style="?android:attr/buttonStyleSmall"
+                        android:text="+"
+                        android:id="@+id/btnRollP"
+                        android:layout_column="0"
+                        android:layout_width="100dp"
+                        android:layout_height="100dp"
+                        android:textSize="25dp"
+                        android:onClick="onBtnRollPTap"
+                        android:layout_alignParentBottom="true"
+                        android:layout_alignParentLeft="true"
+                        android:layout_alignParentStart="true" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Roll"
+                        android:id="@+id/textRollLabel"
+                        android:textSize="18dp"
+                        android:layout_centerVertical="true"
+                        android:layout_centerHorizontal="true" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0.0012"
+                        android:id="@+id/textRollParam"
+                        android:textSize="18dp"
+                        android:textStyle="bold"
+                        android:layout_marginTop="65dp"
+                        android:layout_centerHorizontal="true" />
+                    <Button
+                        style="?android:attr/buttonStyleSmall"
+                        android:text="-"
+                        android:id="@+id/btnRollM"
+                        android:layout_width="100dp"
+                        android:layout_height="100dp"
+                        android:textSize="25dp"
+                        android:onClick="onBtnRollMTap"
+                        android:layout_alignParentRight="true"/>
+                </RelativeLayout>
+                <RelativeLayout
+                    android:id="@+id/rl3"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_below="@id/rl2"
+                    android:layout_weight="3">
+                    <Button
+                        style="?android:attr/buttonStyleSmall"
+                        android:text="+"
+                        android:id="@+id/btnThrustP"
+                        android:layout_column="0"
+                        android:layout_width="100dp"
+                        android:layout_height="100dp"
+                        android:textSize="25dp"
+                        android:onClick="onBtnThrustPTap"
+                        android:layout_alignParentBottom="true"
+                        android:layout_alignParentLeft="true"
+                        android:layout_alignParentStart="true" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Thrust"
+                        android:id="@+id/textThrustLabel"
+                        android:textSize="18dp"
+                        android:layout_centerVertical="true"
+                        android:layout_centerHorizontal="true" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0.0012"
+                        android:id="@+id/textThrustParam"
+                        android:textSize="18dp"
+                        android:textStyle="bold"
+                        android:layout_marginTop="65dp"
+                        android:layout_centerHorizontal="true" />
+                    <Button
+                        style="?android:attr/buttonStyleSmall"
+                        android:text="-"
+                        android:id="@+id/btnThrustM"
+                        android:layout_width="100dp"
+                        android:layout_height="100dp"
+                        android:textSize="25dp"
+                        android:onClick="onBtnThrustMTap"
+                        android:layout_alignParentRight="true"/>
+                </RelativeLayout>
 
-            </LinearLayout>
-
+            </RelativeLayout>
         </android.support.v7.widget.CardView>
-
-
     </LinearLayout>
 </ScrollView>

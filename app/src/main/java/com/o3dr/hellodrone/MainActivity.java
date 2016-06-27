@@ -1,13 +1,10 @@
 package com.o3dr.hellodrone;
 
 import android.content.Context;
-import android.graphics.SurfaceTexture;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.view.Surface;
-import android.view.TextureView;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -16,65 +13,96 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import android.widget.ProgressBar;
+import android.app.ProgressDialog;
+
 import com.o3dr.android.client.ControlTower;
 import com.o3dr.android.client.Drone;
-import com.o3dr.android.client.apis.ControlApi;
-import com.o3dr.android.client.apis.VehicleApi;
-import com.o3dr.android.client.apis.solo.SoloCameraApi;
+
 import com.o3dr.android.client.interfaces.DroneListener;
 import com.o3dr.android.client.interfaces.TowerListener;
-import com.o3dr.services.android.lib.coordinate.LatLong;
 import com.o3dr.services.android.lib.coordinate.LatLongAlt;
 import com.o3dr.services.android.lib.drone.attribute.AttributeEvent;
+import com.o3dr.services.android.lib.drone.attribute.AttributeEventExtra;
 import com.o3dr.services.android.lib.drone.attribute.AttributeType;
-import com.o3dr.services.android.lib.drone.companion.solo.SoloAttributes;
-import com.o3dr.services.android.lib.drone.companion.solo.SoloState;
 import com.o3dr.services.android.lib.drone.connection.ConnectionParameter;
 import com.o3dr.services.android.lib.drone.connection.ConnectionResult;
 import com.o3dr.services.android.lib.drone.connection.ConnectionType;
 import com.o3dr.services.android.lib.drone.property.Altitude;
+import com.o3dr.services.android.lib.drone.property.Attitude;
 import com.o3dr.services.android.lib.drone.property.Gps;
 import com.o3dr.services.android.lib.drone.property.Home;
 import com.o3dr.services.android.lib.drone.property.Speed;
 import com.o3dr.services.android.lib.drone.property.State;
 import com.o3dr.services.android.lib.drone.property.Type;
 import com.o3dr.services.android.lib.drone.property.VehicleMode;
-import com.o3dr.services.android.lib.model.AbstractCommandListener;
-import com.o3dr.services.android.lib.model.SimpleCommandListener;
+import com.o3dr.services.android.lib.drone.property.Parameters;
+import com.o3dr.services.android.lib.drone.property.Parameter;
+
+
 
 import java.util.List;
+import java.util.ArrayList;
 
+
+/* NOTE: this program is written with  compile 'com.o3dr:3dr-services-lib:2.2.16', which is
+ * a pretty old version of 3DR Services.
+ * Refreshing parameters works pretty well on this version of lib, but is very unstable on
+ * the most up-to-date version.
+ * Some of the functions in this app maynot be compatable with
+ * the most up-to-date library. This version of the service lib corresponds to
+ * 3DR_Services V1.2.8 and Tower V3.1.3 apps.
+ */
 
 public class MainActivity extends AppCompatActivity implements DroneListener, TowerListener {
 
     private static final String TAG = MainActivity.class.getSimpleName();
 
     private Drone drone;
-    private int droneType = Type.TYPE_UNKNOWN;
+    private Parameters params;
+    private int droneType = Type.TYPE_COPTER;
     private ControlTower controlTower;
-    private final Handler handler = new Handler();
 
+    private final Handler handler = new Handler();
     private static final int DEFAULT_UDP_PORT = 14550;
     private static final int DEFAULT_USB_BAUD_RATE = 57600;
 
     private Spinner modeSelector;
-    private Button startVideoStream;
-    private Button stopVideoStream;
+
+    private double pitchParamVal = 0;
+    private double rollParamVal = 0;
+    private double thrustParamVal = 0;
+
+    private double pitchParamInterval = 0.1;
+    private double rollParamInterval = 0.1;
+    private double thrustParamInterval = 0.1;
+
+    private ProgressDialog progressDialog;
+
+    private ProgressBar mLoadingProgress;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         final Context context = getApplicationContext();
-        this.controlTower = new ControlTower(context);
-        this.drone = new Drone(context);
 
-        this.modeSelector = (Spinner) findViewById(R.id.modeSelect);
-        this.modeSelector.setOnItemSelectedListener(new Spinner.OnItemSelectedListener() {
+        controlTower = new ControlTower(context);
+        drone = new Drone();
+        params = new Parameters();
+
+        mLoadingProgress = (ProgressBar) this.findViewById(R.id.reload_progress);
+
+        mLoadingProgress.setVisibility(View.GONE);
+
+
+
+        modeSelector = (Spinner) findViewById(R.id.modeSelect);
+        modeSelector.setOnItemSelectedListener(new Spinner.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                onFlightModeSelected(view);
+                //onFlightModeSelected(view);
             }
 
             @Override
@@ -82,90 +110,30 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                 // Do nothing
             }
         });
-
-        //Setup the button to trigger the GoPro camera to take a picture.
-        final Button takePic = (Button) findViewById(R.id.take_photo_button);
-        takePic.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                takePhoto();
-            }
-        });
-
-        //Setup the button to trigger the GoPro camera to start video recording.
-        final Button toggleVideo = (Button) findViewById(R.id.toggle_video_recording);
-        toggleVideo.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                toggleVideoRecording();
-            }
-        });
-
-        final TextureView videoView = (TextureView) findViewById(R.id.video_content);
-        videoView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
-            @Override
-            public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-                alertUser("Video display is available.");
-                startVideoStream.setEnabled(true);
-            }
-
-            @Override
-            public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
-
-            }
-
-            @Override
-            public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-                startVideoStream.setEnabled(false);
-                return true;
-            }
-
-            @Override
-            public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-
-            }
-        });
-
-        //Setup the button to activate video streaming to the Hello Drone app
-        startVideoStream = (Button) findViewById(R.id.start_video_stream);
-        startVideoStream.setEnabled(false);
-        startVideoStream.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                alertUser("Starting video stream.");
-                startVideoStream(new Surface(videoView.getSurfaceTexture()));
-            }
-        });
-
-        //Setup the button to stop video streaming to the Hello Drone app
-        stopVideoStream = (Button) findViewById(R.id.stop_video_stream);
-        stopVideoStream.setEnabled(false);
-        stopVideoStream.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                alertUser("Stopping video stream.");
-                stopVideoStream();
-            }
-        });
+        Spinner connectionSelector = (Spinner) findViewById(R.id.selectConnectionType);
+        connectionSelector.setSelection(1);
+    }
+    @Override
+    public void onDestroy(){
+        super.onDestroy();
     }
 
     @Override
     public void onStart() {
         super.onStart();
-        this.controlTower.connect(this);
-        updateVehicleModesForType(this.droneType);
+        controlTower.connect(this);
+        updateVehicleModesForType(droneType);
     }
 
     @Override
     public void onStop() {
         super.onStop();
-        if (this.drone.isConnected()) {
-            this.drone.disconnect();
+        if (drone.isConnected()) {
+            drone.disconnect();
             updateConnectedButton(false);
-        }
-
-        this.controlTower.unregisterDrone(this.drone);
-        this.controlTower.disconnect();
+        };
+        controlTower.unregisterDrone(drone);
+        controlTower.disconnect();
     }
 
     // 3DR Services Listener
@@ -174,9 +142,11 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     @Override
     public void onTowerConnected() {
         alertUser("3DR Services Connected");
-        this.controlTower.registerDrone(this.drone, this.handler);
-        this.drone.registerDroneListener(this);
+        drone.unregisterDroneListener(this);
+        controlTower.registerDrone(drone, handler);
+        drone.registerDroneListener(this);
     }
+
 
     @Override
     public void onTowerDisconnected() {
@@ -192,14 +162,17 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         switch (event) {
             case AttributeEvent.STATE_CONNECTED:
                 alertUser("Drone Connected");
-                updateConnectedButton(this.drone.isConnected());
+                updateConnectedButton(drone.isConnected());
                 updateArmButton();
-                checkSoloState();
+                // get parameters
+                // A dialogue box will be displayed showing the progression
+                drone.refreshParameters();
+
                 break;
 
             case AttributeEvent.STATE_DISCONNECTED:
                 alertUser("Drone Disconnected");
-                updateConnectedButton(this.drone.isConnected());
+                updateConnectedButton(drone.isConnected());
                 updateArmButton();
                 break;
 
@@ -209,10 +182,10 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                 break;
 
             case AttributeEvent.TYPE_UPDATED:
-                Type newDroneType = this.drone.getAttribute(AttributeType.TYPE);
-                if (newDroneType.getDroneType() != this.droneType) {
-                    this.droneType = newDroneType.getDroneType();
-                    updateVehicleModesForType(this.droneType);
+                Type newDroneType = drone.getAttribute(AttributeType.TYPE);
+                if (newDroneType.getDroneType() != droneType) {
+                    droneType = newDroneType.getDroneType();
+                    updateVehicleModesForType(droneType);
                 }
                 break;
 
@@ -221,31 +194,50 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                 break;
 
             case AttributeEvent.SPEED_UPDATED:
-                updateSpeed();
                 break;
-
+/*
             case AttributeEvent.ALTITUDE_UPDATED:
-                updateAltitude();
                 break;
-
+*/
             case AttributeEvent.HOME_UPDATED:
-                updateDistanceFromHome();
                 break;
 
+            case AttributeEvent.PARAMETERS_RECEIVED:
+                /* The following code does not work.
+                final int defaultValue = -1;
+                int index = extras.getInt(AttributeEventExtra.EXTRA_PARAMETER_INDEX, defaultValue);
+                int count = extras.getInt(AttributeEventExtra.EXTRA_PARAMETERS_COUNT, defaultValue);
+                     if (index != defaultValue && count != defaultValue)
+                         updateProgress(index, count);
+                */
+                break;
 
+            case AttributeEvent.PARAMETERS_REFRESH_STARTED:
+                if(drone.isConnected()) {
+                    startProgress();
+                }
+                break;
+
+            case AttributeEvent.PARAMETERS_REFRESH_ENDED:
+                stopProgress();
+            //    alertUser("Parameters refreshed.");
+                params = drone.getAttribute(AttributeType.PARAMETERS);
+                if (params != null) {
+                    Parameter paramTemp = params.getParameter("SENS_BOARD_Y_OFF");
+                    pitchParamVal = paramTemp.getValue();
+                    TextView tvTemp = (TextView) findViewById(R.id.textPitchParam);
+                    tvTemp.setText(String.format("%.2f",pitchParamVal));
+
+                    paramTemp = params.getParameter("SENS_BOARD_X_OFF");
+                    rollParamVal = paramTemp.getValue();
+                    tvTemp = (TextView) findViewById(R.id.textRollParam);
+                    tvTemp.setText(String.format("%.2f",rollParamVal));
+
+                }
+                break;
             default:
 //                Log.i("DRONE_EVENT", event); //Uncomment to see events from the drone
                 break;
-        }
-
-    }
-
-    private void checkSoloState() {
-        final SoloState soloState = drone.getAttribute(SoloAttributes.SOLO_STATE);
-        if (soloState == null) {
-            alertUser("Unable to retrieve the solo state.");
-        } else {
-            alertUser("Solo state is up to date.");
         }
     }
 
@@ -263,8 +255,8 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     // ==========================================================
 
     public void onBtnConnectTap(View view) {
-        if (this.drone.isConnected()) {
-            this.drone.disconnect();
+        if (drone.isConnected()) {
+            drone.disconnect();
         } else {
             Spinner connectionSelector = (Spinner) findViewById(R.id.selectConnectionType);
             int selectedConnectionType = connectionSelector.getSelectedItemPosition();
@@ -281,7 +273,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         }
 
     }
-
+/*
     public void onFlightModeSelected(View view) {
         VehicleMode vehicleMode = (VehicleMode) this.modeSelector.getSelectedItem();
 
@@ -302,60 +294,93 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             }
         });
     }
+*/
 
     public void onArmButtonTap(View view) {
-        State vehicleState = this.drone.getAttribute(AttributeType.STATE);
-
+        State vehicleState = drone.getAttribute(AttributeType.STATE);
         if (vehicleState.isFlying()) {
             // Land
-            VehicleApi.getApi(this.drone).setVehicleMode(VehicleMode.COPTER_LAND, new SimpleCommandListener() {
-                @Override
-                public void onError(int executionError) {
-                    alertUser("Unable to land the vehicle.");
-                }
-
-                @Override
-                public void onTimeout() {
-                    alertUser("Unable to land the vehicle.");
-                }
-            });
+            drone.arm(false);
         } else if (vehicleState.isArmed()) {
-            // Take off
-            ControlApi.getApi(this.drone).takeoff(10, new AbstractCommandListener() {
-
-                @Override
-                public void onSuccess() {
-                    alertUser("Taking off...");
-                }
-
-                @Override
-                public void onError(int i) {
-                    alertUser("Unable to take off.");
-                }
-
-                @Override
-                public void onTimeout() {
-                    alertUser("Unable to take off.");
-                }
-            });
+            drone.arm(false);
         } else if (!vehicleState.isConnected()) {
             // Connect
             alertUser("Connect to a drone first");
         } else {
             // Connected but not Armed
-            VehicleApi.getApi(this.drone).arm(true, false, new SimpleCommandListener() {
-                @Override
-                public void onError(int executionError) {
-                    alertUser("Unable to arm vehicle.");
-                }
-
-                @Override
-                public void onTimeout() {
-                    alertUser("Arming operation timed out.");
-                }
-            });
+            drone.arm(true);
         }
     }
+
+    public void onBtnPitchPTap(View view){
+        if(this.drone.isConnected()){
+            Parameter paramTemp = params.getParameter("SENS_BOARD_Y_OFF");
+            pitchParamVal = paramTemp.getValue();
+            pitchParamVal += pitchParamInterval;
+            TextView tvTemp = (TextView) findViewById(R.id.textPitchParam);
+            tvTemp.setText(String.format("%.2f",pitchParamVal));
+            paramTemp.setValue(pitchParamVal);
+            List<Parameter> parametersList = new ArrayList<Parameter>(1);
+            parametersList.add(paramTemp);
+            drone.writeParameters(new Parameters(parametersList));
+            mLoadingProgress.setVisibility(View.VISIBLE);
+        }
+    }
+
+    public void onBtnPitchMTap(View view){
+        if(this.drone.isConnected()){
+            Parameter paramTemp = params.getParameter("SENS_BOARD_Y_OFF");
+            pitchParamVal = paramTemp.getValue();
+            pitchParamVal -= pitchParamInterval;
+            TextView tvTemp = (TextView) findViewById(R.id.textPitchParam);
+            tvTemp.setText(String.format("%.2f",pitchParamVal));
+            paramTemp.setValue(pitchParamVal);
+            List<Parameter> parametersList = new ArrayList<Parameter>(1);
+            parametersList.add(paramTemp);
+            drone.writeParameters(new Parameters(parametersList));
+            mLoadingProgress.setVisibility(View.VISIBLE);
+        }
+    }
+
+    public void onBtnRollPTap(View view){
+        if(this.drone.isConnected()){
+            Parameter paramTemp = params.getParameter("SENS_BOARD_X_OFF");
+            rollParamVal = paramTemp.getValue();
+            rollParamVal += rollParamInterval;
+            TextView tvTemp = (TextView) findViewById(R.id.textRollParam);
+            tvTemp.setText(String.format("%.2f",rollParamVal));
+            paramTemp.setValue(rollParamVal);
+            List<Parameter> parametersList = new ArrayList<Parameter>(1);
+            parametersList.add(paramTemp);
+            drone.writeParameters(new Parameters(parametersList));
+            mLoadingProgress.setVisibility(View.VISIBLE);
+        }
+    }
+
+    public void onBtnRollMTap(View view){
+        if(this.drone.isConnected()){
+            Parameter paramTemp = params.getParameter("SENS_BOARD_X_OFF");
+            rollParamVal = paramTemp.getValue();
+            rollParamVal -= rollParamInterval;
+            TextView tvTemp = (TextView) findViewById(R.id.textRollParam);
+            tvTemp.setText(String.format("%.2f",rollParamVal));
+            paramTemp.setValue(rollParamVal);
+            List<Parameter> parametersList = new ArrayList<Parameter>(1);
+            parametersList.add(paramTemp);
+            drone.writeParameters(new Parameters(parametersList));
+            mLoadingProgress.setVisibility(View.VISIBLE);
+        }
+
+    }
+
+    public void onBtnThrustPTap(View view){
+
+    }
+
+    public void onBtnThrustMTap(View view){
+
+    }
+
 
     // UI updating
     // ==========================================================
@@ -391,37 +416,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         }
     }
 
-    protected void updateAltitude() {
-        TextView altitudeTextView = (TextView) findViewById(R.id.altitudeValueTextView);
-        Altitude droneAltitude = this.drone.getAttribute(AttributeType.ALTITUDE);
-        altitudeTextView.setText(String.format("%3.1f", droneAltitude.getAltitude()) + "m");
-    }
 
-    protected void updateSpeed() {
-        TextView speedTextView = (TextView) findViewById(R.id.speedValueTextView);
-        Speed droneSpeed = this.drone.getAttribute(AttributeType.SPEED);
-        speedTextView.setText(String.format("%3.1f", droneSpeed.getGroundSpeed()) + "m/s");
-    }
-
-    protected void updateDistanceFromHome() {
-        TextView distanceTextView = (TextView) findViewById(R.id.distanceValueTextView);
-        Altitude droneAltitude = this.drone.getAttribute(AttributeType.ALTITUDE);
-        double vehicleAltitude = droneAltitude.getAltitude();
-        Gps droneGps = this.drone.getAttribute(AttributeType.GPS);
-        LatLong vehiclePosition = droneGps.getPosition();
-
-        double distanceFromHome = 0;
-
-        if (droneGps.isValid()) {
-            LatLongAlt vehicle3DPosition = new LatLongAlt(vehiclePosition.getLatitude(), vehiclePosition.getLongitude(), vehicleAltitude);
-            Home droneHome = this.drone.getAttribute(AttributeType.HOME);
-            distanceFromHome = distanceBetweenPoints(droneHome.getCoordinate(), vehicle3DPosition);
-        } else {
-            distanceFromHome = 0;
-        }
-
-        distanceTextView.setText(String.format("%3.1f", distanceFromHome) + "m");
-    }
 
     protected void updateVehicleModesForType(int droneType) {
 
@@ -456,78 +451,47 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
-    private void takePhoto() {
-        SoloCameraApi.getApi(drone).takePhoto(new AbstractCommandListener() {
-            @Override
-            public void onSuccess() {
-                alertUser("Photo taken.");
-            }
+    private void startProgress() {
 
-            @Override
-            public void onError(int executionError) {
-                alertUser("Error while trying to take the photo: " + executionError);
-            }
+        progressDialog = new ProgressDialog(this);
+        progressDialog.setTitle("Refreshing parameters...");
+        progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+        progressDialog.setIndeterminate(true);
+        progressDialog.setCancelable(false);
+        progressDialog.setCanceledOnTouchOutside(true);
+        progressDialog.show();
 
-            @Override
-            public void onTimeout() {
-                alertUser("Timeout while trying to take the photo.");
-            }
-        });
+        mLoadingProgress.setIndeterminate(true);
+
+        mLoadingProgress.setVisibility(View.VISIBLE);
     }
 
-    private void toggleVideoRecording() {
-        SoloCameraApi.getApi(drone).toggleVideoRecording(new AbstractCommandListener() {
-            @Override
-            public void onSuccess() {
-                alertUser("Video recording toggled.");
-            }
+    private void updateProgress(int progress, int max) {
+        if (progressDialog == null) {
+            startProgress();
+        }
 
-            @Override
-            public void onError(int executionError) {
-                alertUser("Error while trying to toggle video recording: " + executionError);
-            }
+        if (progressDialog.isIndeterminate()) {
+            progressDialog.setIndeterminate(false);
+            progressDialog.setMax(max);
+        }
+        progressDialog.setProgress(progress);
 
-            @Override
-            public void onTimeout() {
-                alertUser("Timeout while trying to toggle video recording.");
-            }
-        });
+        if (mLoadingProgress.isIndeterminate()) {
+            mLoadingProgress.setIndeterminate(false);
+            mLoadingProgress.setMax(max);
+        }
+        mLoadingProgress.setProgress(progress);
     }
 
-    private void startVideoStream(Surface videoSurface) {
-        SoloCameraApi.getApi(drone).startVideoStream(videoSurface, "", true, new AbstractCommandListener() {
-            @Override
-            public void onSuccess() {
-                if (stopVideoStream != null)
-                    stopVideoStream.setEnabled(true);
+    private void stopProgress() {
+        // dismiss progress dialog
 
-                if (startVideoStream != null)
-                    startVideoStream.setEnabled(false);
-            }
+        if (progressDialog != null) {
+            progressDialog.dismiss();
+            progressDialog = null;
+        }
 
-            @Override
-            public void onError(int executionError) {
-                alertUser("Error while starting the video stream: " + executionError);
-            }
-
-            @Override
-            public void onTimeout() {
-                alertUser("Timed out while attempting to start the video stream.");
-            }
-        });
+        mLoadingProgress.setVisibility(View.GONE);
     }
-
-    private void stopVideoStream() {
-        SoloCameraApi.getApi(drone).stopVideoStream(new SimpleCommandListener() {
-            @Override
-            public void onSuccess() {
-                if (stopVideoStream != null)
-                    stopVideoStream.setEnabled(false);
-
-                if (startVideoStream != null)
-                    startVideoStream.setEnabled(true);
-            }
-        });
-    }
-
 }
